@@ -1,6 +1,7 @@
 from __future__ import with_statement, unicode_literals
 import os
 import codecs
+import django
 
 from django.core.files.base import ContentFile
 from django.template import Context
@@ -338,8 +339,14 @@ class Compressor(object):
 
         self.context['compressed'].update(context or {})
         self.context['compressed'].update(self.extra_context)
-        final_context = Context(self.context)
-        post_compress.send(sender=self.__class__, type=self.type,
-                           mode=mode, context=final_context)
+
         template_name = self.get_template_name(mode)
-        return render_to_string(template_name, context_instance=final_context)
+        if django.VERSION >= (1, 8):
+            post_compress.send(sender=self.__class__, type=self.type,
+                               mode=mode, context=self.context)
+            return render_to_string(template_name, context=self.context)
+        else:
+            final_context = Context(self.context)
+            post_compress.send(sender=self.__class__, type=self.type,
+                               mode=mode, context=final_context)
+            return render_to_string(template_name, context_instance=final_context)
